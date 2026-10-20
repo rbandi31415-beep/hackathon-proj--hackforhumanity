@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Philly Parking Tickets</title>
+<title>Park Sight</title>
 <style>
 :root { color-scheme: light; --bg: #fcfcfb; --card: #fff; --ink: #0b0b0b; --muted: #52514e; --line: #e6e5e1; --accent: #2a78d6; }
 @media (prefers-color-scheme: dark) {
@@ -22,12 +22,24 @@ h1 { font-size: 1.8rem; margin: 0 0 8px; }
 .card span { color: var(--accent); font-weight: 600; font-size: .9rem; }
 .note { margin-top: 28px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: .88rem; }
 .note b { color: var(--ink); }
+.pitch { margin-top: 40px; padding-top: 28px; border-top: 1px solid var(--line); }
+.pitch h2 { font-size: 1.4rem; margin: 0 0 8px; }
+.pitch h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+.pitch p, .pitch li { color: var(--muted); font-size: .95rem; }
+.pitch li { margin-bottom: 6px; }
+.pitch b { color: var(--ink); }
+.pitch a { color: var(--accent); }
+.pitch .small { font-size: .85rem; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 12px 0; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+.stat b { display: block; font-size: 1.5rem; color: var(--accent); }
+.stat span { color: var(--muted); font-size: .85rem; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Philadelphia parking tickets</h1>
-  <p class="lead">Where and when parking tickets are issued in Philadelphia, from 9.4 million city records, 2012–2017.</p>
+  <h1>Park Sight</h1>
+  <p class="lead">See where and when parking tickets are issued in Philadelphia, and where they are likely to be next. Built on 9.4 million city records, 2012–2017.</p>
   <div class="cards">
     <a class="card" href="heatmap.html">
       <h2>Heatmap explorer</h2>
@@ -41,13 +53,51 @@ h1 { font-size: 1.8rem; margin: 0 0 8px; }
     </a>
     <a class="card" href="predict.html">
       <h2>Hotspot forecast</h2>
-      <p>Pick a date and time window to rank the ~200 m zones expected to see the most tickets, with CSV export. Backtested on held-out 2017 days.</p>
+      <p>Pick a date and time window to rank the street blocks expected to see the most tickets, with CSV export. Backtested on held-out 2017 days.</p>
       <span>Forecast a day →</span>
     </a>
   </div>
   <div class="note">
     <b>About the data.</b> Source: City of Philadelphia parking violations via OpenDataPhilly. The city's 2018-to-present data was never published, so everything here covers 2012–2017. About 8% of tickets have no coordinates and don't appear on maps. Forecasts for later dates assume the 2012–2017 pattern still holds. See the <a href="backtest.html" style="color:var(--accent)">forecast backtest</a> for accuracy.
   </div>
+
+  <section class="pitch" id="why">
+    <h2>Why it matters</h2>
+    <p>Blocked bike lanes and bus lanes are a safety and transit problem, and parking enforcement staff are limited. Park Sight shows the Philadelphia Parking Authority (PPA) where enforcement is concentrated hour by hour, and where it is missing.</p>
+
+    <h3>Our approach</h3>
+    <ol>
+      <li><b>Where patrols are today.</b> The hotspot forecast ranks street blocks by expected tickets for any date and 4-hour window.</li>
+      <li><b>Where they aren't (next step).</b> Overlay bike lanes, bus lanes, school zones and crash corridors to find safety-relevant blocks the ticket data under-covers. That is how a patrol scope widens instead of just reinforcing itself.</li>
+    </ol>
+
+    <h3>How well it works</h3>
+    <div class="stats">
+      <div class="stat"><b>9.4M</b><span>tickets, 2012–2017</span></div>
+      <div class="stat"><b>10,255</b><span>street blocks modeled</span></div>
+      <div class="stat"><b>~25×</b><span>better than random: top 50 blocks capture 15.8% of a day's tickets vs 0.6%</span></div>
+      <div class="stat"><b>~75%</b><span>of the best possible hindsight score (21.2%)</span></div>
+    </div>
+    <p class="small">Trained on 2012–2016, tested on 123 unseen days of 2017. Weekday and time-of-day awareness both help, most clearly on weekends. Details in the <a href="backtest.html">backtest</a>.</p>
+
+    <h3>Supporting research</h3>
+    <ul>
+      <li>Reducing double parking can raise traffic speeds roughly 10–15% and cut delay roughly 15–20% in simulation (<a href="https://arxiv.org/pdf/2011.11238">arXiv</a>). These are traffic-flow results, not crash counts.</li>
+      <li>Illegal parking has been linked to collisions, and a New York study cited by Toronto found 88% of cyclists swerve into traffic when a bike lane is blocked (<a href="https://www.tac-atc.ca/wp-content/uploads/illegal_parking_in_Toronto.pdf">Toronto report</a>).</li>
+      <li>Researchers note the safety effects of double parking are not well quantified (<a href="https://www.umass.edu/neutc/projects/measuring-and-modeling-safety-congestion-impacts-double-parking">UMass Amherst</a>). We make no claim that enforcement is proven to prevent crashes.</li>
+      <li>The PPA runs a Vision Zero <a href="https://philapark.org/?p=24539">bike lane enforcement unit</a> and bus-lane cameras with SEPTA, where a pilot flagged over 36,000 violations in about 70 days (<a href="https://www.cbsnews.com/amp/philadelphia/news/ppa-septa-bus-tickets-ai-camera">CBS Philadelphia</a>). A hotspot forecast tells human patrols where to go. Cameras cover what patrols can't.</li>
+      <li>Concentrating resources where problems cluster is among the best-supported strategies in crime policing (<a href="https://www.college.police.uk/research/crime-reduction-toolkit/hot-spots-policing">College of Policing</a>). We apply the same logic to parking. It has not been tested for parking specifically.</li>
+    </ul>
+
+    <h3>Honest limits</h3>
+    <ul>
+      <li><b>Data ends in 2017.</b> The city never published later data. A records request to the PPA is drafted, and current data would replace the old data.</li>
+      <li><b>Feedback loop.</b> Tickets show where enforcement happened, not pure parking demand. Patrolling only the top-ranked blocks would make them rank even higher (<a href="https://www.sciencenews.org/blog/science-public/data-driven-crime-prediction-fails-erase-human-bias">Lum and Isaac</a>). The coverage-gap layer is our mitigation.</li>
+      <li>No holidays, weather, events or staffing inputs yet.</li>
+    </ul>
+
+    <p><b>Our ask:</b> a data partnership with the PPA.</p>
+  </section>
 </main>
 </body>
 </html>

@@ -18,17 +18,17 @@ function run() {
   current = res.ranked;
   const top = current.reduce((s, r) => s + r.expected, 0);
   $("summary").textContent = `${DOW[res.dow]} ${$("date").value}${w === "all" ? "" : ", " + TicketModel.binLabel(+w)}: ` +
-    `top ${k} zones expect ~${Math.round(top).toLocaleString()} of ~${Math.round(res.totalExpected).toLocaleString()} mapped tickets (${(100 * top / res.totalExpected).toFixed(0)}%)`;
+    `top ${k} blocks expect ~${Math.round(top).toLocaleString()} of ~${Math.round(res.totalExpected).toLocaleString()} mapped tickets (${(100 * top / res.totalExpected).toFixed(0)}%)`;
 
   layer.clearLayers();
   const max = current[0]?.expected || 1;
-  $("table").innerHTML = '<tr><th>#</th><th>Where (typical block)</th><th class="n">Exp. tickets</th></tr>' +
+  $("table").innerHTML = '<tr><th>#</th><th>Block</th><th class="n">Exp. tickets</th></tr>' +
     current.map((r, i) => `<tr data-i="${i}"><td>${i + 1}</td><td>${r.addr || "—"}</td><td class="n">${r.expected.toFixed(1)}</td></tr>`).join("");
   current.forEach((r, i) => {
     const size = 18 + 12 * Math.sqrt(r.expected / max);
     const icon = L.divIcon({ className: "", html: `<div class="rank" style="width:${size}px;height:${size}px">${i < 20 ? i + 1 : ""}</div>`, iconSize: [size, size] });
     L.marker([r.lat, r.lon], { icon }).bindPopup(
-      `<b>#${i + 1} ${r.addr || "zone"}</b><br>~${r.expected.toFixed(1)} expected tickets<br><small>zone centre ${r.lat.toFixed(4)}, ${r.lon.toFixed(4)} (≈200 m square)</small>`
+      `<b>#${i + 1} ${r.addr || "block"}</b><br>~${r.expected.toFixed(1)} expected tickets<br><small>${r.lat.toFixed(5)}, ${r.lon.toFixed(5)} (median ticket position on the block)</small>`
     ).addTo(layer);
   });
   if (current.length) map.fitBounds(L.latLngBounds(current.slice(0, 20).map((r) => [r.lat, r.lon])).pad(0.2)); // fit the top zones; farther ones stay reachable by panning

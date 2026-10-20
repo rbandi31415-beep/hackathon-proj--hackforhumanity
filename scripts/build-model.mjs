@@ -1,14 +1,17 @@
 // Builds the hotspot model table from the city's Carto API.
 //   node scripts/build-model.mjs [--through 2017] [--out web/data/model.json]
-// Training years are 2012..through. Cells are 0.002° (~200 m); bins are 4-hour blocks; day of week 0 = Sunday.
+// Zones are STREET BLOCKS (address rounded down to the hundred, plus zip code, e.g. "1500 WALNUT ST"),
+// placed at the median lat/lon of their tickets so markers sit on the street. Bins are 4-hour blocks; day of week 0 = Sunday.
 import { readFile, writeFile } from "node:fs/promises";
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, v, i, arr) => (v.startsWith("--") ? [...a, [v.slice(2), arr[i + 1]]] : a), []));
 const THROUGH = +(args.through ?? 2017);
 const OUT = new URL("../" + (args.out ?? "web/data/model.json"), import.meta.url);
 const API = "https://phl.carto.com/api/v2/sql";
-const GRID = 0.002;
 const BBOX = "lat BETWEEN 39.8 AND 40.2 AND lon BETWEEN -75.4 AND -74.9";
+const MIN_TICKETS = 30; // drop blocks with fewer tickets than this over the whole training period
+// SQL for the block key; exported so backtest.mjs groups the held-out tickets identically.
+export const BLOCK_SQL = `CASE WHEN location ~ '^[0-9]+ ' THEN ((substring(location from '^[0-9]+')::int/100)*100)::text || substring(location from '^[0-9]+(.*)$') ELSE location END`;
 
 export async function query(q, tries = 4) {
   for (let i = 1; i <= tries; i++) {
@@ -25,33 +28,38 @@ export async function query(q, tries = 4) {
 }
 
 async function main() {
-  const counts = new Map(); // "a|b|dow|bin" -> tickets over the training period
+  const counts = new Map(); // "block|zip|dow|bin" -> tickets over the training period
+  const pos = new Map(); // "block|zip" -> { lat, lon, year } from the most recent year the block appears in
+  const total = new Map(); // "block|zip" -> tickets over the training period
   for (let y = 2012; y <= THROUGH; y++) {
-    const rows = await query(`SELECT round(lat::numeric/${GRID})::int a, round(lon::numeric/${GRID})::int b,
-        extract(dow from issue_datetime)::int d, floor(extract(hour from issue_datetime)/4)::int k, count(*)::int c
-      FROM parking_violations WHERE issue_datetime >= '${y}-01-01' AND issue_datetime < '${y + 1}-01-01' AND ${BBOX}
-      GROUP BY 1,2,3,4`);
+    const range = `issue_datetime >= '${y}-01-01' AND issue_datetime < '${y + 1}-01-01' AND ${BBOX}`;
+    const rows = await query(`SELECT ${BLOCK_SQL} blk, zip_code z, extract(dow from issue_datetime)::int d,
+        floor(extract(hour from issue_datetime)/4)::int k, count(*)::int c
+      FROM parking_violations WHERE ${range} GROUP BY 1,2,3,4`);
     for (const r of rows) {
-      const key = `${r.a}|${r.b}|${r.d}|${r.k}`;
-      counts.set(key, (counts.get(key) ?? 0) + r.c);
+      const bk = `${r.blk}|${r.z ?? ""}`;
+      counts.set(`${bk}|${r.d}|${r.k}`, (counts.get(`${bk}|${r.d}|${r.k}`) ?? 0) + r.c);
+      total.set(bk, (total.get(bk) ?? 0) + r.c);
     }
-    console.log(y, rows.length, "rows");
+    // Median position (robust to a few bad geocodes); later years overwrite earlier ones.
+    const prow = await query(`SELECT ${BLOCK_SQL} blk, zip_code z,
+        percentile_cont(0.5) WITHIN GROUP (ORDER BY lat) la, percentile_cont(0.5) WITHIN GROUP (ORDER BY lon) lo
+      FROM parking_violations WHERE ${range} GROUP BY 1,2`);
+    for (const r of prow) pos.set(`${r.blk}|${r.z ?? ""}`, { lat: r.la, lon: r.lo });
+    console.log(y, rows.length, "count rows,", prow.length, "blocks");
   }
-
-  // Most common street address in each cell (from the last training year), so hotspots are human-readable.
-  const addr = new Map();
-  const arows = await query(`SELECT round(lat::numeric/${GRID})::int a, round(lon::numeric/${GRID})::int b,
-      mode() WITHIN GROUP (ORDER BY location) addr
-    FROM parking_violations WHERE issue_datetime >= '${THROUGH}-01-01' AND issue_datetime < '${THROUGH + 1}-01-01' AND ${BBOX}
-    GROUP BY 1,2`);
-  for (const r of arows) addr.set(`${r.a}|${r.b}`, r.addr);
 
   const cellIndex = new Map(), cells = [], rows = [];
   for (const [key, c] of counts) {
-    const [a, b, d, k] = key.split("|").map(Number);
-    const ck = `${a}|${b}`;
-    if (!cellIndex.has(ck)) { cellIndex.set(ck, cells.length); cells.push([a, b, addr.get(ck) ?? ""]); }
-    rows.push(cellIndex.get(ck), d, k, c);
+    const [blk, z, d, k] = key.split("|");
+    const bk = `${blk}|${z}`;
+    if (total.get(bk) < MIN_TICKETS) continue;
+    if (!cellIndex.has(bk)) {
+      const p = pos.get(bk);
+      cellIndex.set(bk, cells.length);
+      cells.push([+p.lat.toFixed(6), +p.lon.toFixed(6), blk, z]);
+    }
+    rows.push(cellIndex.get(bk), +d, +k, c);
   }
 
   // How many of each weekday fall in the training period (Jan 1 2012 .. Dec 31 THROUGH).
@@ -78,7 +86,7 @@ async function main() {
   const trend = { slope, intercept: mv - slope * my, meanYearly: mv, years: ys };
 
   await writeFile(OUT, JSON.stringify({
-    grid: GRID, through: THROUGH, bins: 6, cells, rows, dowDays, monthFactor, trend,
+    through: THROUGH, bins: 6, cells, rows, dowDays, monthFactor, trend,
     source: `City of Philadelphia parking violations 2012-${THROUGH}`,
   }));
   console.log("cells", cells.length, "rows", rows.length / 4, "->", OUT.pathname);

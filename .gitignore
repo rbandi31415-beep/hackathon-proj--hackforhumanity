@@ -1,2 +1,3 @@
 scripts/.cache/
 wrangler.jsonc
+.wrangler/

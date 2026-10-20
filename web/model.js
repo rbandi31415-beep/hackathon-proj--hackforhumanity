@@ -3,7 +3,8 @@
 //   expected(cell, date, window) = Σ over bins in window of avgPerDay[cell][weekday(date)][bin]
 //                                  × monthFactor[month(date)] × trendFactor(year(date))
 //
-// avgPerDay is the historical mean number of tickets in that ~200 m cell for that weekday and 4-hour bin.
+// avgPerDay is the historical mean number of tickets on that street block (e.g. "1500 WALNUT ST") for that weekday
+// and 4-hour bin. Each block sits at the median position of its tickets, so it lies on the street.
 // monthFactor and trendFactor are citywide multipliers, so they change the expected COUNTS but never the
 // RANKING of cells. The ranking is driven by (cell, weekday, time window) alone.
 // Used both by the browser (predict.html) and Node (scripts/backtest.mjs) so they can't disagree.
@@ -44,8 +45,8 @@
     const ranked = order.slice(0, topK || order.length).map((c) => ({
       cell: c,
       expected: score[c] * scale,
-      lat: raw.cells[c][0] * raw.grid,
-      lon: raw.cells[c][1] * raw.grid,
+      lat: raw.cells[c][0],
+      lon: raw.cells[c][1],
       addr: raw.cells[c][2],
     }));
     return { dow, scale, ranked, totalExpected: score.reduce((s, v) => s + v, 0) * scale };

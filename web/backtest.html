@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forecast Backtest</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px 16px; line-height: 1.4; }
+pre { white-space: pre-wrap; font-size: .85rem; background: #f6f6f4; padding: 12px; border-radius: 6px; overflow-x: auto; }
+a { color: #2a78d6; text-decoration: none; }
+</style>
+</head>
+<body>
+<a href="index.html">← Home</a> · <a href="predict.html">Forecast</a>
+<pre id="md">Loading…</pre>
+<script>
+fetch("backtest.md").then((r) => r.text()).then((t) => (document.getElementById("md").textContent = t))
+  .catch((e) => (document.getElementById("md").textContent = "Failed to load: " + e.message));
+</script>
+</body>
+</html>

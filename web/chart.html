@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Philly Ticket Trends</title>
+<style>
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb; --text-primary: #0b0b0b; --text-secondary: #52514e;
+  --grid: #e6e5e1; --series-1: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --text-primary: #f0efec; --text-secondary: #c3c2b7;
+    --grid: #33322f; --series-1: #3987e5;
+  }
+}
+body { margin: 0; background: var(--surface-1); color: var(--text-primary); font-family: system-ui, sans-serif; }
+main { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+h1 { font-size: 1.3rem; margin: 0 0 4px; }
+.sub { color: var(--text-secondary); margin: 0 0 16px; font-size: .9rem; }
+#chart { position: relative; }
+svg { width: 100%; height: auto; display: block; }
+.grid { stroke: var(--grid); stroke-width: 1; }
+.tick { fill: var(--text-secondary); font-size: 12px; }
+.line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; }
+.dot { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+.cursor { stroke: var(--text-secondary); stroke-width: 1; stroke-dasharray: 3 3; }
+#tip { position: absolute; pointer-events: none; background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--grid); border-radius: 6px; padding: 6px 10px; font-size: .85rem; display: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2); white-space: nowrap; }
+#tip b { display: block; }
+.years { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 20px 0; }
+.years > div { border-top: 3px solid var(--series-1); padding-top: 6px; }
+.years .n { font-size: 1.15rem; font-weight: 600; }
+.years .y { color: var(--text-secondary); font-size: .8rem; }
+button { background: none; border: 1px solid var(--grid); color: var(--text-primary); padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+table { border-collapse: collapse; margin-top: 12px; font-size: .85rem; display: none; }
+td, th { padding: 2px 12px 2px 0; text-align: left; }
+small { color: var(--text-secondary); display: block; margin-top: 12px; }
+@media (max-width: 600px) { .years { grid-template-columns: repeat(3, 1fr); } }
+</style>
+</head>
+<body>
+<main>
+  <a href="index.html" style="color:var(--series-1);font-size:.85rem;text-decoration:none">← Home</a>
+  <h1>Philadelphia parking tickets per month, 2012–2017</h1>
+  <p class="sub" id="sub">Loading…</p>
+  <div id="chart"><div id="tip"></div></div>
+  <div class="years" id="years"></div>
+  <button id="toggle">Show data table</button>
+  <table id="table"></table>
+  <small>Source: City of Philadelphia parking violations (OpenDataPhilly). Counts include all tickets, even the ~8% with no coordinates. The city has not published data after 2017.</small>
+</main>
+<script>
+const W = 860, H = 340, M = { l: 56, r: 16, t: 12, b: 28 };
+const fmt = (n) => n.toLocaleString();
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const label = (k) => `${MON[+k.slice(5) - 1]} ${k.slice(0, 4)}`;
+
+fetch("data/monthly_totals.json").then((r) => r.json()).then((d) => {
+  const keys = Object.keys(d).sort(), vals = keys.map((k) => d[k]);
+  const yMax = Math.ceil(Math.max(...vals) / 50000) * 50000;
+  const x = (i) => M.l + (i / (keys.length - 1)) * (W - M.l - M.r);
+  const y = (v) => H - M.b - (v / yMax) * (H - M.t - M.b);
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart of monthly parking tickets, 2012 to 2017">`;
+  for (let v = 0; v <= yMax; v += 50000) {
+    svg += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${y(v)}" y2="${y(v)}"/>` +
+           `<text class="tick" x="${M.l - 8}" y="${y(v) + 4}" text-anchor="end">${v / 1000}k</text>`;
+  }
+  keys.forEach((k, i) => {
+    if (k.endsWith("-01")) svg += `<text class="tick" x="${x(i)}" y="${H - 8}" text-anchor="middle">${k.slice(0, 4)}</text>`;
+  });
+  svg += `<path class="line" d="${vals.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("")}"/>`;
+  svg += `<line class="cursor" id="cur" y1="${M.t}" y2="${H - M.b}" style="display:none"/><circle class="dot" id="dot" r="5" style="display:none"/></svg>`;
+  const chart = document.getElementById("chart");
+  chart.insertAdjacentHTML("afterbegin", svg);
+
+  const tip = document.getElementById("tip"), cur = document.getElementById("cur"), dot = document.getElementById("dot");
+  const el = chart.querySelector("svg");
+  const show = (e) => {
+    const r = el.getBoundingClientRect(), px = ((e.clientX - r.left) / r.width) * W;
+    const i = Math.max(0, Math.min(keys.length - 1, Math.round(((px - M.l) / (W - M.l - M.r)) * (keys.length - 1))));
+    cur.setAttribute("x1", x(i)); cur.setAttribute("x2", x(i));
+    dot.setAttribute("cx", x(i)); dot.setAttribute("cy", y(vals[i]));
+    cur.style.display = dot.style.display = "";
+    tip.innerHTML = `<b>${label(keys[i])}</b>${fmt(vals[i])} tickets`;
+    tip.style.display = "block";
+    const left = (x(i) / W) * r.width;
+    tip.style.left = Math.min(left + 12, r.width - tip.offsetWidth) + "px";
+    tip.style.top = ((y(vals[i]) / H) * r.height - 44) + "px";
+  };
+  el.addEventListener("pointermove", show);
+  el.addEventListener("pointerleave", () => { tip.style.display = "none"; cur.style.display = dot.style.display = "none"; });
+
+  const byYear = {};
+  keys.forEach((k, i) => (byYear[k.slice(0, 4)] = (byYear[k.slice(0, 4)] || 0) + vals[i]));
+  const ys = Object.keys(byYear);
+  document.getElementById("years").innerHTML = ys.map((yr) => `<div><div class="n">${fmt(byYear[yr])}</div><div class="y">${yr}</div></div>`).join("");
+  const pct = ((byYear[ys.at(-1)] / byYear[ys[0]] - 1) * 100).toFixed(0);
+  document.getElementById("sub").textContent =
+    `${fmt(vals.reduce((a, b) => a + b, 0))} tickets in total. Yearly volume was flat near 1.5M through 2014, then rose to 1.72M in 2017 (+${pct}% vs 2012).`;
+
+  document.getElementById("table").innerHTML = "<tr><th>Month</th><th>Tickets</th></tr>" +
+    keys.map((k, i) => `<tr><td>${label(k)}</td><td>${fmt(vals[i])}</td></tr>`).join("");
+  const t = document.getElementById("table"), b = document.getElementById("toggle");
+  b.onclick = () => { const on = t.style.display === "table"; t.style.display = on ? "none" : "table"; b.textContent = on ? "Show data table" : "Hide data table"; };
+});
+</script>
+</body>
+</html>

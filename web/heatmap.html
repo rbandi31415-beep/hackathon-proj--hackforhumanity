@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Philly Parking Ticket Heatmap</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="map"></div>
+<section id="panel">
+  <a class="home" href="index.html">← Home</a>
+  <h1>Philly parking tickets</h1>
+  <p id="stats">Loading data…</p>
+  <div class="row">
+    <button id="play" disabled>▶ Play</button>
+    <label><input type="radio" name="mode" value="month" checked> Month</label>
+    <label><input type="radio" name="mode" value="year"> Rolling 12 mo</label>
+    <label><input type="radio" name="mode" value="all"> All time</label>
+  </div>
+  <div class="row">
+    <label><input type="checkbox" id="heatOn" checked> Heatmap</label>
+    <label><input type="checkbox" id="raw"> Individual tickets (zoom 16+)</label>
+  </div>
+  <div id="rawStatus"></div>
+  <input id="slider" type="range" min="0" max="0" value="0" disabled>
+  <div id="label"></div>
+  <div class="row">
+    <label><input type="checkbox" id="hourOn"> Time of day</label>
+    <span id="hourLabel"></span>
+  </div>
+  <input id="hourSlider" type="range" min="0" max="23" value="12" disabled>
+  <div id="hourNote"></div>
+  <small>Data: City of Philadelphia parking violations, 2012–2017 (the city's 2018+ data is not published). Each heat tile ≈ 100 m. About 8% of tickets have no coordinates and are not mapped.</small>
+</section>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

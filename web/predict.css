@@ -1,0 +1,21 @@
+html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; font-size: 14px; }
+body { display: flex; }
+#side { width: 380px; max-width: 45vw; overflow-y: auto; padding: 14px; box-sizing: border-box; border-right: 1px solid #ddd; }
+#map { flex: 1; }
+h1 { font-size: 1.15rem; margin: 0 0 6px; }
+.lead { color: #555; margin: 0 0 12px; }
+.controls { display: grid; gap: 8px; margin-bottom: 10px; }
+.controls label { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.controls input, .controls select { font: inherit; padding: 3px 6px; }
+button { padding: 6px 10px; cursor: pointer; }
+#summary { font-weight: 600; margin: 8px 0; }
+#table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+#table th { text-align: left; border-bottom: 1px solid #ccc; padding: 3px 4px; position: sticky; top: 0; background: #fff; }
+#table td { padding: 3px 4px; border-bottom: 1px solid #eee; }
+#table tr { cursor: pointer; }
+#table tr:hover { background: #f0f5ff; }
+td.n, th.n { text-align: right; }
+details { margin-top: 12px; color: #444; }
+.rank { background: #d7301f; color: #fff; border: 2px solid #fff; border-radius: 50%; text-align: center;
+  font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+@media (max-width: 700px) { body { flex-direction: column-reverse; } #side { width: auto; max-width: none; height: 50%; } #map { height: 50%; } }
